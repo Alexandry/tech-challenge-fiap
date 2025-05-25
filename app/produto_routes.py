@@ -1,11 +1,11 @@
 import logging
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, status, HTTPException, Query
 from typing import List, Tuple
 import requests
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError, PyMongoError
-from app.model.produto import Produto
-from app.services import embrapa_service
+from app.model.produto import Produto, ProdutoPage
+from app.services import embrapa_service, cache_service
 from app.mongo import db
 
 router = APIRouter()
@@ -34,24 +34,48 @@ def _build_operations(produtos: List[Produto]) -> List[UpdateOne]:
 
 
 @router.get(
-    "/producao", response_model=List[Produto], summary="Dados de produção da Embrapa"
+    "/producao", response_model=ProdutoPage, summary="Dados de produção da Embrapa"
 )
-async def get_producao():
+async def get_producao(page: int = Query(1, ge=1), size: int = Query(10, ge=1)):
+    
+    cache_key = f"producao:{page}:{size}"
+    cached = cache_service.get_cache(cache_key)
+    if cached:
+        return ProdutoPage(**cached)
+    
     try:
         resp = requests.get(
             "http://vitibrasil.cnpuv.embrapa.br/index.php?opcao=opt_02",
             timeout=10
         )
+
         resp.encoding = "utf-8"
         dados = embrapa_service.extrair_dados_tabela(resp.text)
         produtos = [Produto(**d) for d in dados]
         ops = _build_operations(produtos)
+
+        start = (page - 1) * size
+        end = start + size
+        paginados = produtos[start:end]
+
         if ops:
             try:
                 db.producao.bulk_write(ops, ordered=False)
             except BulkWriteError as bwe:
                 logger.warning(f"BulkWriteWarning produção: {bwe.details}")
-        return produtos
+
+        total_pages = (len(produtos) + size - 1) // size
+
+        result = ProdutoPage(
+            items=paginados,
+            total=len(produtos),
+            skip=start,
+            limit=size,
+            total_pages=total_pages,
+            page=page
+        )
+        cache_service.set_cache(cache_key, result.dict())
+        return result
     except requests.RequestException as re:
         logger.error(f"Erro de request produção: {re}")
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail="Falha ao conectar Embrapa")
@@ -64,9 +88,15 @@ async def get_producao():
 
 
 @router.get(
-    "/processamento", response_model=List[Produto], summary="Dados de processamento da Embrapa"
+    "/processamento", response_model=ProdutoPage, summary="Dados de processamento da Embrapa"
 )
-async def get_processamento():
+async def get_processamento(page: int = Query(1, ge=1), size: int = Query(10, ge=1)):
+
+    cache_key = f"processamento:{page}:{size}"
+    cached = cache_service.get_cache(cache_key)
+    if cached:
+        return ProdutoPage(**cached)
+    
     try:
         resp = requests.get(
             "http://vitibrasil.cnpuv.embrapa.br/index.php?opcao=opt_03",
@@ -75,13 +105,30 @@ async def get_processamento():
         resp.encoding = "utf-8"
         dados = embrapa_service.extrair_dados_tabela(resp.text)
         produtos = [Produto(**d) for d in dados]
+        
+        start = (page - 1) * size
+        end = start + size
+        paginados = produtos[start:end]
+
         ops = _build_operations(produtos)
         if ops:
             try:
                 db.processamento.bulk_write(ops, ordered=False)
             except BulkWriteError as bwe:
                 logger.warning(f"BulkWriteWarning processamento: {bwe.details}")
-        return produtos
+
+        total_pages = (len(produtos) + size - 1) // size
+
+        result = ProdutoPage(
+            items=paginados,
+            total=len(produtos),
+            skip=start,
+            limit=size,
+            total_pages=total_pages,
+            page=page
+        )
+        cache_service.set_cache(cache_key, result.dict())
+        return result
     except requests.RequestException as re:
         logger.error(f"Erro de request processamento: {re}")
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail="Falha ao conectar Embrapa")
@@ -94,9 +141,15 @@ async def get_processamento():
 
 
 @router.get(
-    "/comercializacao", response_model=List[Produto], summary="Dados de comercialização da Embrapa"
+    "/comercializacao", response_model=ProdutoPage, summary="Dados de comercialização da Embrapa"
 )
-async def get_comercializacao():
+async def get_comercializacao(page: int = Query(1, ge=1), size: int = Query(10, ge=1)):
+    
+    cache_key = f"comercializacao:{page}:{size}"
+    cached = cache_service.get_cache(cache_key)
+    if cached:
+        return ProdutoPage(**cached)
+
     try:
         resp = requests.get(
             "http://vitibrasil.cnpuv.embrapa.br/index.php?opcao=opt_04",
@@ -105,13 +158,31 @@ async def get_comercializacao():
         resp.encoding = "utf-8"
         dados = embrapa_service.extrair_dados_tabela(resp.text)
         produtos = [Produto(**d) for d in dados]
-        ops = _build_operations(produtos)
+        
+        start = (page - 1) * size
+        end = start + size
+        paginados = produtos[start:end]
+
+        ops = _build_operations(produtos)       
+
         if ops:
             try:
                 db.comercializacao.bulk_write(ops, ordered=False)
             except BulkWriteError as bwe:
                 logger.warning(f"BulkWriteWarning comercialização: {bwe.details}")
-        return produtos
+
+        total_pages = (len(produtos) + size - 1) // size
+
+        result = ProdutoPage(
+            items=paginados,
+            total=len(produtos),
+            skip=start,
+            limit=size,
+            total_pages=total_pages,
+            page=page
+        )
+        cache_service.set_cache(cache_key, result.dict())
+        return result
     except requests.RequestException as re:
         logger.error(f"Erro de request comercialização: {re}")
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail="Falha ao conectar Embrapa")
