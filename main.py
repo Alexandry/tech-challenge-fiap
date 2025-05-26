@@ -1,9 +1,9 @@
 import os
 import logging
 from fastapi import FastAPI
-from app.produto_routes import router as produto_router
-from app.importacao_routes import router as importacao_router
-from app.exportacao_routes import router as exportacao_router
+from app.routes.produto_routes import router as produto_router
+from app.routes.importacao_routes import router as importacao_router
+from app.routes.exportacao_routes import router as exportacao_router
 
 # Configura o logger do Uvicorn para capturar erros
 default_logger = logging.getLogger("uvicorn.error")
