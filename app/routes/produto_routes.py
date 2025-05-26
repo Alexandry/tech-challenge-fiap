@@ -6,7 +6,7 @@ from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError, PyMongoError
 from app.model.produto import Produto, ProdutoPage
 from app.services import embrapa_service, cache_service
-from app.mongo import db
+from app.db.mongo import db
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")

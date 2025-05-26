@@ -3,7 +3,7 @@ from typing import List, Optional
 import requests
 from app.model.dados_comerciais import DadosComerciais, DadosComerciaisPage
 from app.services import embrapa_service, cache_service
-from app.mongo import db
+from app.db.mongo import db
 from pymongo import UpdateOne
 from pymongo.errors import PyMongoError
 

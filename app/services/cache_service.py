@@ -1,6 +1,6 @@
 import time
 from typing import Any, Optional
-from app.mongo import db
+from app.db.mongo import db
 
 CACHE_TTL_SECONDS = 3600  # 1 hora
 
